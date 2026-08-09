@@ -16,7 +16,7 @@ const updateResearchByRequestId = async (
     { requestId },
     update,
     {
-      new: true,
+      returnDocument: "after",
       runValidators: true,
     }
   ).lean();

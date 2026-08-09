@@ -37,6 +37,9 @@ const finalNode = async (state) => {
   if (!rankedRestaurants.length) {
     return {
       recommendations: [],
+
+      finalSummary: "",
+
       researchSteps: [
         {
           id: "final_recommendation",
@@ -60,7 +63,9 @@ Your job is to explain the already-calculated restaurant rankings
 to the user.
 
 IMPORTANT:
+
 - Do NOT change the ranking.
+- Do NOT change the score.
 - Do NOT invent restaurant information.
 - Do NOT invent menu items or prices.
 - Do NOT invent review claims.
@@ -88,8 +93,82 @@ Return a concise summary and recommendations for the top restaurants.
 
   const result = await structuredModel.invoke(prompt);
 
+  /*
+   * Merge the AI explanation back into the original
+   * ranking data so we don't lose restaurant details
+   * or score breakdowns.
+   */
+
+  const recommendations = result.recommendations
+    .map((finalRecommendation) => {
+      const originalRecommendation =
+        rankedRestaurants.find(
+          (item) =>
+            item?.restaurant?.name ===
+            finalRecommendation.restaurantName
+        );
+
+      if (!originalRecommendation) {
+        return {
+          rank: finalRecommendation.rank,
+          restaurant: {
+            name: finalRecommendation.restaurantName,
+          },
+          score: finalRecommendation.score,
+          breakdown: [],
+          reasons: finalRecommendation.whyRecommended || [],
+          menuHighlights:
+            finalRecommendation.menuHighlights || [],
+          reviewHighlights:
+            finalRecommendation.reviewHighlights || [],
+          concerns:
+            finalRecommendation.concerns || [],
+          restaurantUrl:
+            finalRecommendation.restaurantUrl || null,
+          menuUrl:
+            finalRecommendation.menuUrl || null,
+        };
+      }
+
+      return {
+        rank: originalRecommendation.rank,
+
+        restaurant: {
+          ...originalRecommendation.restaurant,
+
+          restaurantUrl:
+            finalRecommendation.restaurantUrl ||
+            originalRecommendation.restaurant?.restaurantUrl ||
+            null,
+
+          menuUrl:
+            finalRecommendation.menuUrl ||
+            originalRecommendation.restaurant?.menuUrl ||
+            null,
+        },
+
+        score: originalRecommendation.score,
+
+        breakdown:
+          originalRecommendation.breakdown || [],
+
+        reasons:
+          finalRecommendation.whyRecommended || [],
+
+        menuHighlights:
+          finalRecommendation.menuHighlights || [],
+
+        reviewHighlights:
+          finalRecommendation.reviewHighlights || [],
+
+        concerns:
+          finalRecommendation.concerns || [],
+      };
+    })
+    .sort((a, b) => a.rank - b.rank);
+
   return {
-    recommendations: result.recommendations,
+    recommendations,
 
     finalSummary: result.summary,
 

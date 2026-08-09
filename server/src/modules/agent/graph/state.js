@@ -65,7 +65,7 @@ const AgentState = Annotation.Root({
     reducer: (current, update) => current.concat(update),
     default: () => [],
   }),
-  
+
   finalSummary: Annotation({
     reducer: (_, update) => update,
     default: () => "",
