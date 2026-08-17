@@ -1,16 +1,31 @@
-const { env } = require("../../config/env");
-const AppError = require("../../shared/errors/AppError");
-const { withRetry } = require("../../shared/utils/retry");
+const {
+  env,
+} = require("../../config/env");
 
-const TAVILY_API_URL = "https://api.tavily.com/search";
+const AppError = require(
+  "../../shared/errors/AppError"
+);
+
+const {
+  withRetry,
+} = require(
+  "../../shared/utils/retry"
+);
+
+const TAVILY_API_URL =
+  "https://api.tavily.com/search";
 
 const searchWeb = async ({
   query,
   searchDepth = "advanced",
   maxResults = 8,
   includeAnswer = false,
+  country = null,
 }) => {
-  if (!query || !query.trim()) {
+  if (
+    !query ||
+    !query.trim()
+  ) {
     throw new AppError(
       "Search query is required",
       400,
@@ -19,64 +34,130 @@ const searchWeb = async ({
   }
 
   try {
-    const response = await withRetry(
-      () =>
-        fetch(TAVILY_API_URL, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
+    const response =
+      await withRetry(
+        () =>
+          fetch(
+            TAVILY_API_URL,
+            {
+              method: "POST",
+
+              headers: {
+                "Content-Type":
+                  "application/json",
+              },
+
+              body: JSON.stringify({
+                api_key:
+                  env.searchApiKey,
+
+                query,
+
+                search_depth:
+                  searchDepth,
+
+                max_results:
+                  maxResults,
+
+                include_answer:
+                  includeAnswer,
+
+                /*
+                 * Optional geographic
+                 * search context.
+                 *
+                 * Tavily expects a country
+                 * name/code depending on the
+                 * supported search configuration.
+                 */
+                ...(country
+                  ? {
+                      country,
+                    }
+                  : {}),
+              }),
+            }
+          ),
+        {
+          retries: 2,
+
+          initialDelay: 1000,
+
+          maxDelay: 4000,
+
+          shouldRetry: (
+            error
+          ) => {
+            const errorMessage =
+              error?.message?.toLowerCase() ||
+              "";
+
+            return (
+              errorMessage.includes(
+                "429"
+              ) ||
+              errorMessage.includes(
+                "rate limit"
+              ) ||
+              errorMessage.includes(
+                "503"
+              ) ||
+              errorMessage.includes(
+                "service unavailable"
+              ) ||
+              errorMessage.includes(
+                "timeout"
+              )
+            );
           },
-          body: JSON.stringify({
-            api_key: env.searchApiKey,
-            query,
-            search_depth: searchDepth,
-            max_results: maxResults,
-            include_answer: includeAnswer,
-          }),
-        }),
-      {
-        retries: 2,
-        initialDelay: 1000,
-        maxDelay: 4000,
-
-        shouldRetry: (error) => {
-          const errorMessage =
-            error?.message?.toLowerCase() || "";
-
-          return (
-            errorMessage.includes("429") ||
-            errorMessage.includes("rate limit") ||
-            errorMessage.includes("503") ||
-            errorMessage.includes("service unavailable") ||
-            errorMessage.includes("timeout")
-          );
-        },
-      }
-    );
+        }
+      );
 
     if (!response.ok) {
-      const errorText = await response.text();
+      const errorText =
+        await response.text();
 
       throw new Error(
         `Tavily request failed: ${response.status} ${errorText}`
       );
     }
 
-    const data = await response.json();
+    const data =
+      await response.json();
 
     return {
       query,
-      answer: data.answer || null,
 
-      results: (data.results || []).map((result) => ({
-        title: result.title,
-        url: result.url,
-        content: result.content,
-        score: result.score,
-        publishedDate: result.published_date || null,
-      })),
+      answer:
+        data.answer || null,
+
+      results:
+        (data.results || []).map(
+          (result) => ({
+            title:
+              result.title,
+
+            url:
+              result.url,
+
+            content:
+              result.content,
+
+            score:
+              result.score,
+
+            publishedDate:
+              result.published_date ||
+              null,
+          })
+        ),
     };
   } catch (error) {
+    console.error(
+      "Tavily search error:",
+      error
+    );
+
     throw new AppError(
       "Restaurant web search failed",
       502,

@@ -7,7 +7,10 @@ const sendSSE = (res, event, data) => {
 
 const startResearch = async (req, res, next) => {
   try {
-    const { message } = req.validated.body;
+    const {
+      message,
+      location,
+    } = req.validated.body;
 
     /*
      * ------------------------------------------------
@@ -32,31 +35,29 @@ const startResearch = async (req, res, next) => {
       "keep-alive"
     );
 
-    /*
-     * Important for proxies such as nginx.
-     */
     res.setHeader(
       "X-Accel-Buffering",
       "no"
     );
 
-    /*
-     * Flush headers immediately so the browser
-     * knows that this is a streaming response.
-     */
-    if (typeof res.flushHeaders === "function") {
+    if (
+      typeof res.flushHeaders ===
+      "function"
+    ) {
       res.flushHeaders();
     }
 
-    /*
-     * Tell frontend that the research request
-     * has started.
-     */
-    sendSSE(res, "research_started", {
-      requestId: req.requestId,
-      status: "running",
-      startedAt: new Date().toISOString(),
-    });
+    sendSSE(
+      res,
+      "research_started",
+      {
+        requestId:
+          req.requestId,
+        status: "running",
+        startedAt:
+          new Date().toISOString(),
+      }
+    );
 
     /*
      * ------------------------------------------------
@@ -67,14 +68,16 @@ const startResearch = async (req, res, next) => {
     const result =
       await researchService.startResearch({
         message,
-        requestId: req.requestId,
+        location,
+        requestId:
+          req.requestId,
 
-        onProgress: (progress) => {
-          /*
-           * Don't try to write after the client
-           * has disconnected.
-           */
-          if (res.writableEnded) {
+        onProgress: (
+          progress
+        ) => {
+          if (
+            res.writableEnded
+          ) {
             return;
           }
 
@@ -92,46 +95,65 @@ const startResearch = async (req, res, next) => {
      * ------------------------------------------------
      */
 
-    if (!res.writableEnded) {
-      sendSSE(res, "research_complete", {
-        requestId: req.requestId,
-        status: "completed",
-        data: result,
-        completedAt: new Date().toISOString(),
-      });
+    if (
+      !res.writableEnded
+    ) {
+      sendSSE(
+        res,
+        "research_complete",
+        {
+          requestId:
+            req.requestId,
+          status:
+            "completed",
+          data: result,
+          completedAt:
+            new Date().toISOString(),
+        }
+      );
 
-      /*
-       * Tell the browser that the stream is finished.
-       */
-      sendSSE(res, "done", {
-        requestId: req.requestId,
-      });
+      sendSSE(
+        res,
+        "done",
+        {
+          requestId:
+            req.requestId,
+        }
+      );
 
       res.end();
     }
   } catch (error) {
-    /*
-     * If SSE headers have already been sent,
-     * we cannot use the normal Express error
-     * middleware anymore.
-     */
     if (res.headersSent) {
-      if (!res.writableEnded) {
-        sendSSE(res, "research_error", {
-          requestId: req.requestId,
-          status: "failed",
-          error: {
-            code:
-              error.code || "RESEARCH_FAILED",
-            message:
-              error.message ||
-              "Research failed",
-          },
-        });
+      if (
+        !res.writableEnded
+      ) {
+        sendSSE(
+          res,
+          "research_error",
+          {
+            requestId:
+              req.requestId,
+            status: "failed",
+            error: {
+              code:
+                error.code ||
+                "RESEARCH_FAILED",
+              message:
+                error.message ||
+                "Research failed",
+            },
+          }
+        );
 
-        sendSSE(res, "done", {
-          requestId: req.requestId,
-        });
+        sendSSE(
+          res,
+          "done",
+          {
+            requestId:
+              req.requestId,
+          }
+        );
 
         res.end();
       }
@@ -139,10 +161,6 @@ const startResearch = async (req, res, next) => {
       return;
     }
 
-    /*
-     * Fallback for errors that happen before
-     * SSE starts.
-     */
     next(error);
   }
 };

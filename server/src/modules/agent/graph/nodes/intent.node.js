@@ -13,9 +13,13 @@ const userPreferencesSchema = z.object({
     "any",
   ]),
 
-  dietaryPreferences: z.array(z.string()),
+  dietaryPreferences: z.array(
+    z.string()
+  ),
 
-  cuisinePreferences: z.array(z.string()),
+  cuisinePreferences: z.array(
+    z.string()
+  ),
 
   budget: z.object({
     min: z.number().nullable(),
@@ -23,16 +27,35 @@ const userPreferencesSchema = z.object({
     currency: z.string(),
   }),
 
-  locationPreference: z.string().nullable(),
+  locationPreference:
+    z.string().nullable(),
 
-  reviewPreferences: z.array(z.string()),
+  reviewPreferences:
+    z.array(z.string()),
 
-  otherPreferences: z.array(z.string()),
+  otherPreferences:
+    z.array(z.string()),
+
+  /*
+   * Browser-provided location.
+   *
+   * Gemini does NOT generate this.
+   * It is injected by the application
+   * after intent extraction.
+   */
+  location: z
+    .object({
+      latitude: z.number(),
+      longitude: z.number(),
+      accuracy: z.number().nullable(),
+    })
+    .nullable(),
 });
 
-const structuredGemini = geminiModel.withStructuredOutput(
-  userPreferencesSchema
-);
+const structuredGemini =
+  geminiModel.withStructuredOutput(
+    userPreferencesSchema
+  );
 
 const intentPrompt = `
 You are the intent extraction component of a restaurant recommendation agent.
@@ -59,19 +82,63 @@ Rules:
 - Use "EUR" only when the currency cannot reasonably be inferred
   and the destination is in the Eurozone.
 
+IMPORTANT:
+
+- Do NOT generate latitude or longitude.
+- Do NOT guess the user's physical location.
+- If the user says "near me", capture that as a location preference.
+- The application will provide browser GPS coordinates separately.
+
 User request:
 `;
 
 const intentNode = async (state) => {
-  const userQuery = state.userQuery;
+  const userQuery =
+    state.userQuery;
 
-  if (!userQuery || !userQuery.trim()) {
-    throw new Error("User query is required for intent analysis");
+  if (
+    !userQuery ||
+    !userQuery.trim()
+  ) {
+    throw new Error(
+      "User query is required for intent analysis"
+    );
   }
 
-  const userPreferences = await structuredGemini.invoke(
-    `${intentPrompt}\n${userQuery}`
-  );
+  /*
+   * Let Gemini extract only semantic
+   * preferences.
+   */
+  const extractedPreferences =
+    await structuredGemini.invoke(
+      `${intentPrompt}\n${userQuery}`
+    );
+
+  /*
+   * Browser GPS comes from the application,
+   * never from the LLM.
+   */
+  const browserLocation =
+    state.location || null;
+
+  const userPreferences = {
+    ...extractedPreferences,
+
+    location:
+      browserLocation
+        ? {
+            latitude:
+              browserLocation.latitude,
+
+            longitude:
+              browserLocation.longitude,
+
+            accuracy:
+              browserLocation.accuracy ??
+              null,
+          }
+        : null,
+  };
 
   return {
     userPreferences,
@@ -79,9 +146,14 @@ const intentNode = async (state) => {
     researchSteps: [
       {
         id: "intent_analysis",
-        label: "Understanding your preferences",
+
+        label:
+          "Understanding your preferences",
+
         status: "completed",
-        completedAt: new Date().toISOString(),
+
+        completedAt:
+          new Date().toISOString(),
       },
     ],
   };

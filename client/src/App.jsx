@@ -9,7 +9,8 @@ import RestaurantDetail from "./pages/RestaurantDetail";
 import { requestResearch } from "./services/research.api";
 
 function App() {
-  const [page, setPage] = useState("home");
+  const [page, setPage] =
+    useState("home");
 
   const [researchResult, setResearchResult] =
     useState(null);
@@ -23,12 +24,6 @@ function App() {
   const [error, setError] =
     useState("");
 
-  /*
-   * ------------------------------------------------
-   * LIVE RESEARCH PROGRESS
-   * ------------------------------------------------
-   */
-
   const [researchProgress, setResearchProgress] =
     useState([]);
 
@@ -41,32 +36,26 @@ function App() {
    * ------------------------------------------------
    */
 
-  const handleResearch = async (message) => {
+  const handleResearch = async (
+    message,
+    location = null
+  ) => {
     try {
       setError("");
       setResearchQuery(message);
       setResearchResult(null);
-
-      /*
-       * Reset previous progress.
-       */
       setResearchProgress([]);
 
-      /*
-       * Store the start time so Research.jsx
-       * can display elapsed time.
-       */
       setResearchStartedAt(
         Date.now()
       );
 
       setPage("research");
 
-      /*
-       * ------------------------------------------------
-       * REQUEST RESEARCH + RECEIVE LIVE EVENTS
-       * ------------------------------------------------
-       */
+      console.log(
+        "RESEARCH LOCATION:",
+        location
+      );
 
       const response =
         await requestResearch(
@@ -76,18 +65,6 @@ function App() {
               "RESEARCH PROGRESS:",
               progress
             );
-
-            /*
-             * research_progress contains:
-             *
-             * {
-             *   type: "progress",
-             *   requestId,
-             *   status,
-             *   researchSteps,
-             *   ...
-             * }
-             */
 
             if (
               progress?.type ===
@@ -101,9 +78,6 @@ function App() {
               );
             }
 
-            /*
-             * Research started event.
-             */
             if (
               progress?.type ===
               "started"
@@ -113,9 +87,6 @@ function App() {
               );
             }
 
-            /*
-             * Final progress event.
-             */
             if (
               progress?.type ===
               "complete"
@@ -132,7 +103,8 @@ function App() {
                 );
               }
             }
-          }
+          },
+          location
         );
 
       console.log(
@@ -145,17 +117,10 @@ function App() {
         response.data
       );
 
-      /*
-       * Store final research result.
-       */
       setResearchResult(
         response.data
       );
 
-      /*
-       * Move to results only after
-       * the complete event has arrived.
-       */
       setPage("results");
     } catch (err) {
       console.error(

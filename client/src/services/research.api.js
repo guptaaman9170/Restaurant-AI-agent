@@ -30,19 +30,20 @@ const parseSSEEvent = (rawEvent) => {
       event,
       data: JSON.parse(data),
     };
-  } catch (error) {
-    console.error(
-      "Failed to parse SSE data:",
-      data
-    );
+  } catch {
+  console.error(
+    "Failed to parse SSE data:",
+    data
+  );
 
-    return null;
-  }
+  return null;
+}
 };
 
 const requestResearch = async (
   message,
-  onProgress
+  onProgress,
+  location = null
 ) => {
   const response = await fetch(
     `${API_BASE_URL}/research`,
@@ -56,6 +57,26 @@ const requestResearch = async (
 
       body: JSON.stringify({
         message,
+
+        /*
+         * Optional browser location.
+         *
+         * If the user does not enable GPS,
+         * this will be null.
+         */
+        location: location
+          ? {
+              latitude:
+                location.latitude,
+
+              longitude:
+                location.longitude,
+
+              accuracy:
+                location.accuracy ??
+                null,
+            }
+          : null,
       }),
     }
   );
@@ -69,7 +90,8 @@ const requestResearch = async (
       "Failed to start research";
 
     try {
-      const data = await response.json();
+      const data =
+        await response.json();
 
       errorMessage =
         data?.error?.message ||
@@ -120,17 +142,9 @@ const requestResearch = async (
         }
       );
 
-      /*
-       * SSE events are separated by
-       * two newline characters.
-       */
       const events =
         buffer.split("\n\n");
 
-      /*
-       * Keep the last incomplete event
-       * in the buffer.
-       */
       buffer =
         events.pop() || "";
 
@@ -148,9 +162,7 @@ const requestResearch = async (
         } = parsed;
 
         /*
-         * ------------------------------------------
          * RESEARCH STARTED
-         * ------------------------------------------
          */
 
         if (
@@ -166,9 +178,7 @@ const requestResearch = async (
         }
 
         /*
-         * ------------------------------------------
          * LIVE RESEARCH PROGRESS
-         * ------------------------------------------
          */
 
         if (
@@ -184,9 +194,7 @@ const requestResearch = async (
         }
 
         /*
-         * ------------------------------------------
          * FINAL RESEARCH RESULT
-         * ------------------------------------------
          */
 
         if (
@@ -205,9 +213,7 @@ const requestResearch = async (
         }
 
         /*
-         * ------------------------------------------
          * RESEARCH ERROR
-         * ------------------------------------------
          */
 
         if (
@@ -223,8 +229,9 @@ const requestResearch = async (
     }
 
     /*
-     * Process any remaining buffered event.
+     * Process remaining buffered event.
      */
+
     if (buffer.trim()) {
       const parsed =
         parseSSEEvent(buffer);
@@ -255,26 +262,24 @@ const requestResearch = async (
   }
 
   /*
-   * The backend should always send
-   * research_complete before closing.
+   * Backend should always send
+   * research_complete.
    */
+
   if (!finalResponse) {
     throw new Error(
       "Research stream ended before a final result was received."
     );
   }
 
-  /*
-   * Keep the same return structure that
-   * your existing App.jsx expects:
-   *
-   * response.data
-   */
   return {
     success: true,
+
     data: finalResponse,
+
     requestId:
       finalResponse.requestId,
+
     message:
       "Research completed successfully",
   };

@@ -14,6 +14,7 @@ const AppError = require("../../shared/errors/AppError");
 
 const startResearch = async ({
   message,
+  location = null,
   requestId,
   onProgress,
 }) => {
@@ -22,6 +23,7 @@ const startResearch = async ({
     requestId,
     userQuery: message,
     status: "running",
+    location: location || null,
   });
 
   try {
@@ -29,12 +31,6 @@ const startResearch = async ({
      * ------------------------------------------------
      * 2. Run agent with LangGraph streaming
      * ------------------------------------------------
-     *
-     * "values" gives us the complete graph state
-     * after every node execution.
-     *
-     * This allows the API layer to forward research
-     * progress to the frontend in real time.
      */
 
     let finalState = null;
@@ -42,6 +38,14 @@ const startResearch = async ({
     const stream = await agentGraph.stream(
       {
         userQuery: message,
+
+        /*
+         * Optional browser location.
+         *
+         * If the user denied permission or didn't
+         * enable location, this remains null.
+         */
+        location: location || null,
       },
       {
         streamMode: "values",
@@ -52,31 +56,44 @@ const startResearch = async ({
       finalState = state;
 
       /*
-       * Send progress to the caller if a callback
-       * was provided.
-       *
-       * Existing callers that don't provide
-       * onProgress will continue to work normally.
+       * Send live progress to frontend.
        */
-      if (typeof onProgress === "function") {
+      if (
+        typeof onProgress ===
+        "function"
+      ) {
         onProgress({
           requestId,
           status: "running",
+
           researchSteps:
-            state.researchSteps || [],
+            state.researchSteps ||
+            [],
+
           userPreferences:
-            state.userPreferences || {},
+            state.userPreferences ||
+            {},
+
           candidateRestaurants:
-            state.candidateRestaurants || [],
+            state.candidateRestaurants ||
+            [],
+
           shortlistedRestaurants:
-            state.shortlistedRestaurants || [],
+            state.shortlistedRestaurants ||
+            [],
+
+          /*
+           * Expose location status without
+           * exposing unnecessary information.
+           */
+          locationEnabled:
+            Boolean(location),
         });
       }
     }
 
     /*
-     * Safety check in case the graph produces
-     * no final state.
+     * Safety check.
      */
     if (!finalState) {
       throw new Error(
@@ -85,22 +102,33 @@ const startResearch = async ({
     }
 
     // 3. Map internal graph state → public response
-    const response = mapResearchResponse(
-      finalState,
-      requestId
-    );
+    const response =
+      mapResearchResponse(
+        finalState,
+        requestId
+      );
 
     /*
      * 4. Send final completed progress event
      */
-    if (typeof onProgress === "function") {
+    if (
+      typeof onProgress ===
+      "function"
+    ) {
       onProgress({
         requestId,
         status: "completed",
+
         researchSteps:
-          response.researchSteps || [],
+          response.researchSteps ||
+          [],
+
         userPreferences:
-          response.preferences || {},
+          response.preferences ||
+          {},
+
+        locationEnabled:
+          Boolean(location),
       });
     }
 
@@ -109,11 +137,22 @@ const startResearch = async ({
       requestId,
       {
         status: "completed",
-        preferences: response.preferences,
-        summary: response.summary,
-        recommendations: response.recommendations,
-        researchSteps: response.researchSteps,
-        evidence: response.evidence,
+
+        preferences:
+          response.preferences,
+
+        summary:
+          response.summary,
+
+        recommendations:
+          response.recommendations,
+
+        researchSteps:
+          response.researchSteps,
+
+        evidence:
+          response.evidence,
+
         error: {
           code: null,
           message: null,
@@ -124,15 +163,21 @@ const startResearch = async ({
     return response;
   } catch (error) {
     /*
-     * Send failure progress event before rethrowing.
+     * Send failure progress event.
      */
-    if (typeof onProgress === "function") {
+    if (
+      typeof onProgress ===
+      "function"
+    ) {
       onProgress({
         requestId,
         status: "failed",
+
         error: {
           code:
-            error.code || "RESEARCH_FAILED",
+            error.code ||
+            "RESEARCH_FAILED",
+
           message:
             error.message ||
             "Research failed",
@@ -145,9 +190,12 @@ const startResearch = async ({
       requestId,
       {
         status: "failed",
+
         error: {
           code:
-            error.code || "RESEARCH_FAILED",
+            error.code ||
+            "RESEARCH_FAILED",
+
           message:
             error.message ||
             "Research failed",
