@@ -1,5 +1,13 @@
 require("dotenv").config();
 
+const parseClientUrl = (url) => {
+  if (!url) return ["http://localhost:5173", "http://localhost:3000", "http://localhost"];
+  if (url.includes(",")) {
+    return url.split(",").map((item) => item.trim()).filter(Boolean);
+  }
+  return url;
+};
+
 const env = {
   port: process.env.PORT || 5000,
 
@@ -8,7 +16,7 @@ const env = {
   geminiApiKey: process.env.GEMINI_API_KEY,
 
   searchApiKey: process.env.SEARCH_API_KEY,
-  clientUrl: process.env.CLIENT_URL || "http://localhost:5173",
+  clientUrl: parseClientUrl(process.env.CLIENT_URL),
 
   nodeEnv: process.env.NODE_ENV || "development",
 };

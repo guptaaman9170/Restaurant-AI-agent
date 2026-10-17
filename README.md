@@ -101,6 +101,7 @@ Completion timestamps are displayed for completed research stages.
 - React
 - Vite
 - Tailwind CSS
+- Nginx (Production reverse proxy & static asset server)
 
 ### Backend
 - Node.js
@@ -117,6 +118,90 @@ Completion timestamps are displayed for completed research stages.
 - Web search tools for restaurant discovery
 - Menu research
 - Review research
+
+### Containerization & DevOps
+- Docker & Docker Compose
+- Multi-stage builds
+- Nginx reverse proxy with SSE streaming support
+- Built-in container health checks
+
+---
+
+## 🐳 Docker Deployment & Quickstart
+
+The entire DineScout AI platform is fully containerized with Docker and Docker Compose, including the React frontend (served via Nginx), Express backend, and MongoDB database.
+
+### 1. Prerequisites
+- [Docker](https://docs.docker.com/get-docker/) (v20+)
+- [Docker Compose](https://docs.docker.com/compose/) (v2+)
+
+### 2. Configure Environment Variables
+Copy the root `.env.example` file to `.env`:
+```bash
+cp .env.example .env
+```
+Open `.env` and fill in your API credentials:
+```env
+GEMINI_API_KEY=your_google_gemini_api_key
+SEARCH_API_KEY=your_search_api_key
+```
+
+### 3. Start the Full Application Stack
+Run the following command to build and launch all containers in detached mode:
+```bash
+docker compose up --build -d
+```
+
+### 4. Access the Application
+- **Frontend Web UI**: [http://localhost:3000](http://localhost:3000)
+- **Backend API Health Check**: [http://localhost:5000/api/health](http://localhost:5000/api/health)
+- **MongoDB**: `localhost:27017`
+
+### 5. Managing the Containers
+- **View live logs**:
+  ```bash
+  docker compose logs -f
+  ```
+- **View backend logs specifically**:
+  ```bash
+  docker compose logs -f server
+  ```
+- **Stop containers**:
+  ```bash
+  docker compose down
+  ```
+- **Stop containers and reset database volume**:
+  ```bash
+  docker compose down -v
+  ```
+
+### 6. Development Mode with Docker (Live Reload)
+To run containers with source code volume mounts and hot-reloading enabled:
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+```
+
+---
+
+## 🛠️ Local Development (Without Docker)
+
+### Backend Setup
+```bash
+cd server
+cp .env.example .env
+# Edit server/.env with your GEMINI_API_KEY, SEARCH_API_KEY, and MONGODB_URI
+npm install
+npm run dev
+```
+
+### Frontend Setup
+```bash
+cd client
+cp .env.example .env
+npm install
+npm run dev
+```
+Visit `http://localhost:5173` to test the frontend with Vite dev server.
 
 ## Limitations
 

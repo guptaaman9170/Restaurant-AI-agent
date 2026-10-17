@@ -7,11 +7,28 @@ const errorHandler = require("./api/middleware/error.middleware");
 const researchRoutes = require("./api/routes/research.route");
 const app = express();
 
-app.use(
-  cors({
-    origin: env.clientUrl,
-  })
-);
+const corsOptions = {
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps, curl, or server-side proxies)
+    if (!origin) return callback(null, true);
+
+    const allowed = Array.isArray(env.clientUrl)
+      ? env.clientUrl
+      : [env.clientUrl];
+
+    if (
+      allowed.includes("*") ||
+      allowed.includes(origin) ||
+      allowed.some((item) => origin === item || origin.startsWith(item))
+    ) {
+      return callback(null, true);
+    }
+    return callback(null, true);
+  },
+  credentials: true,
+};
+
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(requestIdMiddleware);
 

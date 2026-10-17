@@ -110,7 +110,6 @@ const Research = ({
 
   useEffect(() => {
     if (!researchStartedAt) {
-      setElapsedSeconds(0);
       return;
     }
 
